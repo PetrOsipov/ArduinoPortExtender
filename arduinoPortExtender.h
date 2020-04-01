@@ -11,7 +11,6 @@
 #define ARDUINO_PORT_EXTENDER_H
 
 #include <Wire.h>
-#include <LinkedList.h>
 
 // Command actions
 #define PIN_WRITE 0x01
