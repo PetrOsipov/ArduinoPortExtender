@@ -163,8 +163,7 @@ private:
 };
 
 void ArduinoPortExtender::receiveEvent(){
-  Serial.println("OnReceive");
-  Serial.flush();
+  
   uint8_t rbuf[5];
   int ctr = 0;
   while(Wire.available())    // slave may send less than requested
