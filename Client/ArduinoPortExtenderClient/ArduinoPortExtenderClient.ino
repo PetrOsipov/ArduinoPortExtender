@@ -11,6 +11,7 @@
 
 #include <Wire.h>
 
+#define CLIENT_I2C_ADDRESS 0x22
 
 // Command actions
 #define PIN_WRITE 0x01
@@ -25,6 +26,7 @@
 #define PIN_INPUT_PULLUP 0x02
 #define PIN_OUTPUT 0x04
 
+#define TRANSMISSION_ERROR 0xFF
 
 // For requests, first a receiveEvent is done and placed here (only PIN_DIGITAL/ANALOG and pin number stored); When the request is then done - the pin is actually read and reported back.
 uint8_t read_cache[6];
@@ -34,15 +36,16 @@ uint8_t master;
  
 void setup()
 {
-  Wire.begin(0x22);                // join i2c bus with address #4
+  Wire.begin(CLIENT_I2C_ADDRESS);                // join i2c bus with address 
   Wire.onReceive(receiveEvent);    // register event
   Wire.onRequest(requestResponse);
   Serial.begin(115200);           // start serial for output
+  resetCache(); // make cache to show error if unexpected request comes. 
 }
 
 void loop()
 {
-  delay(100);
+  delay(1);
 }
 
 uint8_t readAll(uint8_t* buf, uint8_t max = 6){
@@ -82,7 +85,7 @@ void processWrite(uint8_t* buf, uint8_t length){
 void processRead(uint8_t* buf, uint8_t length){
   
   if (length > 2) {
-    uint8_t tmp[6];
+   
     if (buf[1] == PIN_ANALOG){
       uint16_t val = analogRead(buf[2]);
       
@@ -117,7 +120,6 @@ void processRead(uint8_t* buf, uint8_t length){
 
 // If mode set is requested, call this
 void processMode(uint8_t* buf, uint8_t length){
-  Serial.println("Mode");
   if (length==4)
   {
     if (buf[1]==PIN_INPUT){
@@ -192,10 +194,18 @@ void receiveEvent(int howMany)
 
 // If a response is requested (in AnalogWrite and DigitalWrite, send out the prepared cache)
 void requestResponse(){
-  //read_cache
-  char textstr[255];
+  //read_cache is set either to a correct response or to an error. In any case, always right to be send back.
   
   Wire.write(read_cache, cacheLength);
-  
+  //as the answer is set right, reset it all to error message
+  resetCache();
+}
+
+// Normally, the cache is set to an error message, so if no request came garbled or unexpected due to comm troubles, error message is sent back. 
+void resetCache(){
+  cacheLength = 3;
+  read_cache[0] = PIN_READ;
+  read_cache[1] = TRANSMISSION_ERROR;
+  fillChecksum(read_cache,3);
 }
 

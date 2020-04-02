@@ -131,23 +131,28 @@ public:
   ArduinoPortExtender(uint8_t addr,  uint8_t addrMaster );
   virtual ~ArduinoPortExtender();
 
-  // takes usual INPUT, INPUT PULLUP and OUTPUT. Use provided structs for the boards to avoid using illegal pins.
+  // takes PIN_INPUT, PIN_INPUT_PULLUP, PIN_OUTPUT. Use provided structs for the boards to avoid using illegal pins.
   // Also - avoid using pins D0 or D1, as it is the serial port and debug info is going out there, except if you compiled Arduino sketch with nodebug
-
-  
-  virtual void pinMode(uint8_t pin, uint8_t mode);
+  // It does not guarantee that the command arrived ungarbled and was decoded right by the client, 0 code only means that command was received by client and acknowledged.
+  // returns 0 if ok, 1, 2, 3 or 4 if transmission fails (see https://www.arduino.cc/en/Reference/WireEndTransmission codes)
+  virtual uint8_t pinMode(uint8_t pin, uint8_t mode);
 
   // read data from pin. (0 or 1, pins 0 to 17 (D0-D13, A0-A3 on UNO)) 
+  // returns 0xFF in error case. Does not retry to send once more. 
   virtual uint8_t digitalRead(uint8_t pin);
 
+
   // read data from pin (0-1023, only pins 14-17 (A0-A3) on UNO )
+  // returns 0xFFFF in error case. Does not retry to send once more.
   virtual uint16_t analogRead(uint8_t pin);
 
-  // write data to pin
-  virtual void digitalWrite(uint8_t pin, uint8_t val);
+  // write data to pin. It does not guarantee that the command arrived ungarbled and was decoded right by the client, 0 code only means that command was received by client and acknowledged.
+  // returns 0 if ok, 1, 2, 3 or 4 if transmission fails (see https://www.arduino.cc/en/Reference/WireEndTransmission codes
+  virtual uint8_t digitalWrite(uint8_t pin, uint8_t val);
 
-  // write data to pin
-  virtual void analogWrite(uint8_t pin, uint16_t val);
+  // write data to pin. It does not guarantee that the command arrived ungarbled and was decoded right by the client, 0 code only means that command was received by client and acknowledged.
+  // returns 0 if ok, 1, 2, 3 or 4 if transmission fails (see https://www.arduino.cc/en/Reference/WireEndTransmission codes
+  virtual uint8_t analogWrite(uint8_t pin, uint16_t val);
 private:
   void fillChecksum(uint8_t* buffer, uint8_t size);
   uint8_t calculateChecksum(uint8_t* buffer, uint8_t size);
@@ -185,7 +190,7 @@ ArduinoPortExtender::~ArduinoPortExtender(){
  
 }
 
-void ArduinoPortExtender::pinMode(uint8_t pin, uint8_t mode){
+uint8_t ArduinoPortExtender::pinMode(uint8_t pin, uint8_t mode){
   uint8_t buf[4];
   buf[0] = PIN_MODE;
   buf[1] = mode;
@@ -193,8 +198,9 @@ void ArduinoPortExtender::pinMode(uint8_t pin, uint8_t mode){
   fillChecksum((uint8_t *)buf, 4);
   Wire.beginTransmission(client);
   Wire.write(buf, 4);
-  Wire.endTransmission();
+  return Wire.endTransmission();
 }
+
 uint8_t ArduinoPortExtender::digitalRead(uint8_t pin){
   uint8_t buf[5];
   buf[0] = PIN_READ;
@@ -205,9 +211,11 @@ uint8_t ArduinoPortExtender::digitalRead(uint8_t pin){
   
   Wire.beginTransmission(client);
   Wire.write(buf, 5);
-  Wire.endTransmission();
-  Wire.requestFrom(client, 5);
-  
+  int trerr = Wire.endTransmission();
+
+  if (trerr!=0) return 0xFF; //ERROR
+  int rcvcount = Wire.requestFrom(client, 5);
+  if (rcvcount<2) return 0xFF; //ERROR
   uint8_t rbuf[5];
   
   int ctr = 0;
@@ -216,8 +224,8 @@ uint8_t ArduinoPortExtender::digitalRead(uint8_t pin){
     rbuf[ctr] = Wire.read(); // receive a byte as character
     ctr++;
   }
-  // we got a correct message?
-  uint8_t ret=0x00;
+  // we got a correct message? If decoded ok, then return the value, else error.
+  uint8_t ret=0xFF;
   if (ctr == 5 && rbuf[0]==PIN_READ && rbuf[1]==PIN_DIGITAL && rbuf[2]==pin && rbuf[4]==calculateChecksum(rbuf,5)){
      ret = rbuf[3];
   }
@@ -234,21 +242,21 @@ uint16_t ArduinoPortExtender::analogRead(uint8_t pin){
   fillChecksum((uint8_t *) buf, 5);
   Wire.beginTransmission(client);
   Wire.write(buf, 5);
-  Wire.endTransmission();
-  Wire.requestFrom(client, 6);
-  uint8_t rbuf[6];
+  int trerr = Wire.endTransmission();
+  if (trerr!=0) return 0xFFFF; //ERROR
 
   
-  
-  
-//  Wire.requestFrom(client, 6);
+  int rcvcount = Wire.requestFrom(client, 6);
+  if (rcvcount<2) return 0xFFFF; //ERROR
+  uint8_t rbuf[6];
+
   int ctr = 0;
   while(Wire.available())    // slave may send less than requested
   { 
     rbuf[ctr] = Wire.read(); // receive a byte as character
     ctr++;
   }
-  // we got a correct message?
+  // we got a correct message?  If decoded ok, then return the value, else error.
   uint16_t ret=0xFFFF;
   if (ctr == 6 && rbuf[0]==PIN_READ && rbuf[1]==PIN_ANALOG && rbuf[2]==pin && rbuf[5]==calculateChecksum(rbuf,6)){
      uint16_t hbyte = rbuf[3];
@@ -259,7 +267,7 @@ uint16_t ArduinoPortExtender::analogRead(uint8_t pin){
 }
 
 // write data to pin
-void ArduinoPortExtender::digitalWrite(uint8_t pin, uint8_t val){
+uint8_t ArduinoPortExtender::digitalWrite(uint8_t pin, uint8_t val){
   uint8_t buf[5];
   buf[0] = PIN_WRITE;
   buf[1] = PIN_DIGITAL;
@@ -268,9 +276,9 @@ void ArduinoPortExtender::digitalWrite(uint8_t pin, uint8_t val){
   fillChecksum((uint8_t *)buf, 5);
   Wire.beginTransmission(client);
   Wire.write(buf, 5);
-  Wire.endTransmission();
+  return Wire.endTransmission();
 }
-void ArduinoPortExtender::analogWrite(uint8_t pin, uint16_t val){
+uint8_t ArduinoPortExtender::analogWrite(uint8_t pin, uint16_t val){
   uint8_t buf[6];
   buf[0] = PIN_WRITE;
   buf[1] = PIN_ANALOG;
@@ -280,7 +288,7 @@ void ArduinoPortExtender::analogWrite(uint8_t pin, uint16_t val){
   fillChecksum((uint8_t *)buf, 6);
   Wire.beginTransmission(client);
   Wire.write(buf, 6);
-  Wire.endTransmission();
+  return Wire.endTransmission();
 }
 
 // take all values except last one, and fill the last with checksum.
