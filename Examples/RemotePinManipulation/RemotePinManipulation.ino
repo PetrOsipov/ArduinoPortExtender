@@ -8,7 +8,8 @@
 */
 
 
-#include <arduinoPortExtender.h>
+#include "arduinoPortExtender.h"
+
 
 ArduinoPortExtender* extender;
 int increment = 15;
@@ -17,7 +18,7 @@ int value = 0;
   
 void setup()
 {
-  extender = new ArduinoPortExtender(0x22);
+  extender = new ArduinoPortExtender(0x22, 0x0c);
   extender->pinMode(PinsUno.P_D13, PIN_OUTPUT); 
   extender->pinMode(PinsUno.P_D3, PIN_OUTPUT);
   extender->pinMode(PinsUno.P_D4, PIN_INPUT);
@@ -34,10 +35,13 @@ void loop()
   
   extender->analogWrite(PinsUno.P_D3, value);
   delay(100);
-  Serial.print("Digital Read D4 - ");
-  Serial.println(extender->digitalRead(PinsUno.P_D4));
-  Serial.print("Analog Read A0 - ");
-  Serial.println(extender->analogRead(PinsUno.P_A0));
+
+  if (Serial){
+    Serial.print("Digital Read D4 - ");
+    Serial.println(extender->digitalRead(PinsUno.P_D4));
+    Serial.print("Analog Read A0 - ");
+    Serial.println(extender->analogRead(PinsUno.P_A0));
+  }
 
   
   
