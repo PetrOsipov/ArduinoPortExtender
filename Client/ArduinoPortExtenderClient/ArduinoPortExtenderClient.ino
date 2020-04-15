@@ -1,4 +1,6 @@
 
+
+
 /*
   ArduinoPortExtenderClient.ino - Sketch for client board for ArduinoPortExtender project
   Project page: https://github.com/PetrOsipov/ArduinoPortExtender
@@ -10,6 +12,8 @@
 
 
 #include <Wire.h>
+#include <LinkedList.h>
+#include <Servo.h>
 
 #define CLIENT_I2C_ADDRESS 0x22
 
@@ -17,6 +21,7 @@
 #define PIN_WRITE 0x01
 #define PIN_READ 0x02
 #define PIN_MODE 0x04
+#define PIN_SERVO 0x08
 
 // Modes for Read/Write ops
 #define PIN_DIGITAL 0x01
@@ -33,6 +38,9 @@ uint8_t read_cache[6];
 uint8_t cacheLength;
 uint8_t master;
 
+LinkedList<Servo*> servoList;
+
+
  
 void setup()
 {
@@ -45,7 +53,7 @@ void setup()
 
 void loop()
 {
-  delay(1);
+  delay(10);
 }
 
 uint8_t readAll(uint8_t* buf, uint8_t max = 6){
@@ -60,6 +68,36 @@ uint8_t readAll(uint8_t* buf, uint8_t max = 6){
   return ctr;
 }
 
+bool initServo(uint8_t pin){
+  if (!servoList.get(pin)){
+    Servo* srv = new Servo();
+    //srv->attach(pin);
+    servoList.add(pin, srv);
+  }
+  return true;
+}
+
+void setServo(uint8_t pin, uint8_t value){
+  Servo* s = servoList.get(pin);
+  if (!s){
+    bool worked = initServo(pin);
+    if (!worked){
+      return;
+    }
+    else
+    {
+      s = servoList.get(pin);
+      if (!s){
+        return;
+      }
+    }
+  }
+  s->attach(pin);
+  delay(15);
+  s->write(value);
+  delay(15);
+  //s->detach();
+}
 
 void processWrite(uint8_t* buf, uint8_t length){
   //Serial.print("Write command - length is ");
@@ -67,13 +105,18 @@ void processWrite(uint8_t* buf, uint8_t length){
   if (length>=4)
   {
     if (buf[1]==PIN_DIGITAL){
-      //Serial.print("Set pin ");
-      //Serial.print(buf[2]);
-      //Serial.print(" to ");
-      //Serial.println(buf[3]);
+      
       digitalWrite(buf[2], buf[3]);
       
-    } else 
+    } else if (buf[1]==PIN_SERVO){
+      Serial.print("Set servo pin ");
+      Serial.print(buf[2]);
+      Serial.print(" to ");
+      Serial.println(buf[3]);
+      //digitalWrite(buf[2], buf[3]);
+      setServo(buf[2], buf[3]);
+    } 
+    else 
     if (buf[1]==PIN_ANALOG){
       uint16_t val = 0x0000 | (buf[3] << 8) | buf[4];
       analogWrite(buf[2], val);
@@ -130,6 +173,9 @@ void processMode(uint8_t* buf, uint8_t length){
     } else
     if (buf[1]==PIN_INPUT_PULLUP){
       pinMode(buf[2], INPUT_PULLUP);
+    } else
+    if (buf[1]==PIN_SERVO){
+      initServo(buf[2]);
     }
   }
 }

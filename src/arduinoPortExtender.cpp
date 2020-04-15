@@ -37,6 +37,8 @@ void ArduinoPortExtender::receiveEvent(){
       
 }
 
+
+
 uint8_t ArduinoPortExtender::pinMode(uint8_t pin, uint8_t mode){
   uint8_t buf[4];
   buf[0] = PIN_MODE;
@@ -125,6 +127,22 @@ uint8_t ArduinoPortExtender::digitalWrite(uint8_t pin, uint8_t val){
   Wire.write(buf, 5);
   return Wire.endTransmission();
 }
+
+uint8_t ArduinoPortExtender::servoWrite(uint8_t pin, uint8_t val){
+  uint8_t buf[5];
+  buf[0] = PIN_WRITE;
+  buf[1] = PIN_SERVO;
+  buf[2] = pin;
+  buf[3] = val;
+  fillChecksum((uint8_t *)buf, 5);
+  Wire.beginTransmission(client);
+  Wire.write(buf, 5);
+  return Wire.endTransmission();
+  
+}
+
+
+
 uint8_t ArduinoPortExtender::analogWrite(uint8_t pin, uint16_t val){
   uint8_t buf[6];
   buf[0] = PIN_WRITE;

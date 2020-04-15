@@ -18,6 +18,7 @@
 #define PIN_WRITE 0x01
 #define PIN_READ 0x02
 #define PIN_MODE 0x04
+#define PIN_SERVO 0x08
 
 // Modes for Read/Write ops
 #define PIN_DIGITAL 0x01
@@ -155,6 +156,13 @@ public:
   // write data to pin. It does not guarantee that the command arrived ungarbled and was decoded right by the client, 0 code only means that command was received by client and acknowledged.
   // returns 0 if ok, 1, 2, 3 or 4 if transmission fails (see https://www.arduino.cc/en/Reference/WireEndTransmission codes
   virtual uint8_t analogWrite(uint8_t pin, uint16_t val);
+
+  // write servo angle to pin. Value is between 0 and 180. It does not guarantee that the command arrived ungarbled and was decoded right by the client, 0 code only means that command was received by client and acknowledged.
+  // Restrictions as per Servo.h https://www.arduino.cc/en/reference/servo to PWM output happen. 
+  // returns 0 if ok, 1, 2, 3 or 4 if transmission fails (see https://www.arduino.cc/en/Reference/WireEndTransmission codes
+  virtual uint8_t servoWrite(uint8_t pin, uint8_t val);
+
+  
 private:
   void fillChecksum(uint8_t* buffer, uint8_t size);
   uint8_t calculateChecksum(uint8_t* buffer, uint8_t size);

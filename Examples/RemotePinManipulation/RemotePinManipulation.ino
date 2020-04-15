@@ -23,6 +23,7 @@ void setup()
   extender->pinMode(PinsUno.P_D3, PIN_OUTPUT);
   extender->pinMode(PinsUno.P_D4, PIN_INPUT);
   extender->pinMode(PinsUno.P_A0, PIN_INPUT);
+  extender->pinMode(PinsUno.P_D2, PIN_SERVO);
   Serial.begin(74880);
 }
 
@@ -31,8 +32,8 @@ void loop()
 
   extender->digitalWrite(PinsUno.P_D13, (value<128));
   value +=increment;
-  if (value >240 || value < 15) increment = -increment;
-  
+  if (value >160 || value < 15) increment = -increment;
+  extender->servoWrite(PinsUno.P_D2, value);
   extender->analogWrite(PinsUno.P_D3, value);
   delay(100);
 
